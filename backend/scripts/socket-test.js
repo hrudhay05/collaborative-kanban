@@ -125,7 +125,44 @@ async function main() {
   await sleep(500);
   check('arjun receives task:deleted', count(arjun, 'task:deleted') === 1);
   check('sneha and kiran receive nothing on delete', sneha.log.length === 0 && kiran.log.length === 0);
+  // 3b. board and column events
+  reset(priya, arjun, sneha, kiran);
+  const nb = await api('POST', '/api/boards', priyaT, hyd, { name: 'Socket Test Board' });
+  const testBoardId = nb.data.board.id;
+  await sleep(400);
+  check('arjun receives board:updated (board:created)', arjun.log.some((x) => x.ev === 'board:updated' && x.d.type === 'board:created' && x.d.boardId === testBoardId));
 
+  reset(priya, arjun);
+  const nc = await api('POST', `/api/boards/${testBoardId}/columns`, priyaT, hyd, { name: 'Extra' });
+  const extraColId = nc.data.column.id;
+  await sleep(400);
+  check('arjun receives column:created with the board id', arjun.log.some((x) => x.d?.type === 'column:created' && x.d.boardId === testBoardId));
+
+  reset(priya, arjun);
+  await api('PATCH', `/api/columns/${extraColId}`, priyaT, hyd, { name: 'Extra renamed' });
+  await sleep(400);
+  check('arjun receives column:updated', arjun.log.some((x) => x.d?.type === 'column:updated' && x.d.column.name === 'Extra renamed'));
+
+  reset(priya, arjun);
+  await api('PATCH', `/api/boards/${testBoardId}`, priyaT, hyd, { name: 'Socket Test Board 2' });
+  await sleep(400);
+  check('arjun receives board:updated (rename)', arjun.log.some((x) => x.d?.type === 'board:updated' && x.d.board.name === 'Socket Test Board 2'));
+
+  reset(priya, arjun);
+  const denied = await api('POST', '/api/boards', arjunT, hyd, { name: 'Not allowed' });
+  await sleep(400);
+  check('member cannot create a board (403) and nothing is broadcast', denied.status === 403 && priya.log.length === 0 && arjun.log.length === 0);
+
+  reset(priya, arjun);
+  await api('DELETE', `/api/columns/${extraColId}`, priyaT, hyd);
+  await sleep(400);
+  check('arjun receives column:deleted with the column id', arjun.log.some((x) => x.d?.type === 'column:deleted' && x.d.columnId === extraColId));
+
+  reset(priya, arjun);
+  await api('DELETE', `/api/boards/${testBoardId}`, priyaT, hyd);
+  await sleep(400);
+  check('arjun receives board:deleted', arjun.log.some((x) => x.d?.type === 'board:deleted' && x.d.boardId === testBoardId));
+  check('sneha and kiran received nothing from any board or column change', sneha.log.length === 0 && kiran.log.length === 0);
   // 4. multi-tab presence
   reset(priya);
   const arjun2 = await connect(arjunT);
