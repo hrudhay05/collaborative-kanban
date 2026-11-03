@@ -23,9 +23,10 @@ export function AuthProvider({ children }) {
     setUser(data.user)
   }, [])
 
-  const logout = useCallback(() => {
+    const logout = useCallback(() => {
     localStorage.removeItem('token')
     localStorage.removeItem('tenantId')
+    localStorage.removeItem('orgId')
     setUser(null)
   }, [])
 
