@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import asyncHandler from '../utils/asyncHandler.js';
 import * as taskService from '../services/task.service.js';
-
+import { emitToTenant } from '../sockets/io.js';
 const uuid = z.string().uuid();
 const idParam = z.object({ id: uuid });
 const version = z.number().int().min(1);
@@ -54,27 +54,62 @@ export const getOne = asyncHandler(async (req, res) => {
   res.json({ task: await taskService.getTask(req.tenant.id, id) });
 });
 
+// export const create = asyncHandler(async (req, res) => {
+//   const data = createBody.parse(req.body);
+//   res.status(201).json({ task: await taskService.createTask(req.tenant, req.user.id, data) });
+// });
+
+// export const update = asyncHandler(async (req, res) => {
+//   const { id } = idParam.parse(req.params);
+//   const data = updateBody.parse(req.body);
+//   res.json({ task: await taskService.updateTask(req.tenant, req.user.id, id, data) });
+// });
+
+// export const move = asyncHandler(async (req, res) => {
+//   const { id } = idParam.parse(req.params);
+//   const data = moveBody.parse(req.body);
+//   res.json({ task: await taskService.moveTask(req.tenant, req.user.id, id, data) });
+// });
+
+// export const remove = asyncHandler(async (req, res) => {
+//   const { id } = idParam.parse(req.params);
+//   const q = z.object({ version: z.coerce.number().int().min(1).optional() }).parse(req.query);
+//   const task = await taskService.deleteTask(req.tenant, req.user.id, id, q.version);
+//   res.json({ deleted: true, task });
+// });
+
 export const create = asyncHandler(async (req, res) => {
   const data = createBody.parse(req.body);
-  res.status(201).json({ task: await taskService.createTask(req.tenant, req.user.id, data) });
+  const task = await taskService.createTask(req.tenant, req.user.id, data);
+  emitToTenant(req.tenant.id, 'task:created', { task, actorId: req.user.id });
+  res.status(201).json({ task });
 });
 
 export const update = asyncHandler(async (req, res) => {
   const { id } = idParam.parse(req.params);
   const data = updateBody.parse(req.body);
-  res.json({ task: await taskService.updateTask(req.tenant, req.user.id, id, data) });
+  const task = await taskService.updateTask(req.tenant, req.user.id, id, data);
+  emitToTenant(req.tenant.id, 'task:updated', { task, actorId: req.user.id });
+  res.json({ task });
 });
 
 export const move = asyncHandler(async (req, res) => {
   const { id } = idParam.parse(req.params);
   const data = moveBody.parse(req.body);
-  res.json({ task: await taskService.moveTask(req.tenant, req.user.id, id, data) });
+  const task = await taskService.moveTask(req.tenant, req.user.id, id, data);
+  emitToTenant(req.tenant.id, 'task:moved', { task, actorId: req.user.id });
+  res.json({ task });
 });
 
 export const remove = asyncHandler(async (req, res) => {
   const { id } = idParam.parse(req.params);
   const q = z.object({ version: z.coerce.number().int().min(1).optional() }).parse(req.query);
   const task = await taskService.deleteTask(req.tenant, req.user.id, id, q.version);
+  emitToTenant(req.tenant.id, 'task:deleted', {
+    taskId: task.id,
+    boardId: task.boardId,
+    actorId: req.user.id,
+  });
   res.json({ deleted: true, task });
 });
 
