@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import api from '../services/api'
-
+import { disconnectSocket } from '../services/socket'
 const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
 
@@ -23,7 +23,8 @@ export function AuthProvider({ children }) {
     setUser(data.user)
   }, [])
 
-    const logout = useCallback(() => {
+      const logout = useCallback(() => {
+    disconnectSocket()
     localStorage.removeItem('token')
     localStorage.removeItem('tenantId')
     localStorage.removeItem('orgId')
