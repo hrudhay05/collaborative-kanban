@@ -6,7 +6,7 @@ import organizationRoutes from './routes/organization.routes.js';
 import tenantRoutes from './routes/tenant.routes.js';
 import boardRoutes from './routes/board.routes.js';
 import columnRoutes from './routes/column.routes.js';
-import debugRoutes from './routes/debug.routes.js';
+import taskRoutes from './routes/task.routes.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -23,10 +23,7 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/columns', columnRoutes);
-
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/api/_debug', debugRoutes);
-}
+app.use('/api/tasks', taskRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
