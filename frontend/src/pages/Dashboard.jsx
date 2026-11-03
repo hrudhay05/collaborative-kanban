@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Navbar from '../components/Navbar'
 import { useWorkspace } from '../context/WorkspaceContext'
 import api from '../services/api'
+import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
   const { tenantId, currentTenant, loading: wsLoading, error: wsError } = useWorkspace()
@@ -52,11 +53,15 @@ export default function Dashboard() {
               <p className="text-slate-500">No boards yet.</p>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
-              {boards.map((b) => (
-                <div key={b.id} className="rounded-lg bg-white p-4 shadow-sm">
+                            {boards.map((b) => (
+                <Link
+                  key={b.id}
+                  to={`/boards/${b.id}`}
+                  className="rounded-lg bg-white p-4 shadow-sm hover:shadow"
+                >
                   <h2 className="font-medium text-slate-800">{b.name}</h2>
                   <p className="mt-1 text-sm text-slate-500">{b.description || 'No description'}</p>
-                </div>
+                </Link>
               ))}
             </div>
           </>
