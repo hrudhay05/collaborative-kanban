@@ -1,4 +1,4 @@
-HTTP isolation, RBAC and concurrency tests - 2026-11-04T05:29:36.611Z
+HTTP isolation, RBAC and concurrency tests - 2026-11-04T05:54:58.386Z
 
 == A. Cross-tenant ID guessing (Priya, Hyderabad, uses Bangalore IDs) ==
 PASS  GET Bangalore board by id (expect 404)
@@ -61,6 +61,20 @@ PASS  Org admin (Rahul) reaches Hyderabad (expect 200)
 PASS  Org admin (Rahul) reaches Chennai (expect 200)
 PASS  board survived every denied member action
 
+== E2. Tenant management (org admin only) ==
+PASS  Org admin creates a tenant (expect 201)
+PASS  new tenant appears in the org admin tenant list
+PASS  Org admin creates a duplicate tenant name (expect 409)
+PASS  Org admin renames a tenant (expect 200)
+PASS  rename is visible in the tenant list
+PASS  Tenant admin (Priya) creates a tenant (expect 403)
+PASS  Member (Arjun) creates a tenant (expect 403)
+PASS  Tenant admin (Priya) renames her own tenant (expect 403)
+PASS  Member (Arjun) renames a tenant (expect 403)
+PASS  Org admin of ABC renames an XYZ tenant (Mumbai) (expect 403)
+PASS  XYZ user (Kiran) creates a tenant inside the ABC org (expect 403/404)
+PASS  Hyderabad name unchanged after all denied renames
+
 == F. Concurrency ==
 PASS  first writer (expect 200)
 PASS  second writer using the stale version (expect 409)
@@ -78,4 +92,4 @@ PASS  move a deleted task (expect 404)
 
 (cleanup: removed 28 of 29 temporary tasks; re-seed before the next run)
 
-All 64 checks passed
+All 76 checks passed

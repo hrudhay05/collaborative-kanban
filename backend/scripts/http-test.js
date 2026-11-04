@@ -169,7 +169,26 @@ async function main() {
   expectStatus('Org admin (Rahul) reaches Chennai', await api('GET', '/api/boards', rahul, chn), 200);
   const stillThere = await P('GET', `/api/boards/${hydBoard.id}`);
   check('board survived every denied member action', stillThere.status === 200 && stillThere.data.board.name === hydBoard.name && stillThere.data.board.columns.length === hydBoard.columns.length);
-
+  log('\n== E2. Tenant management (org admin only) ==');
+  const abcOrgId = rahulTenants[0].organizationId;
+  const newTenantName = `Test Branch ${Date.now()}`;
+  const ct = await api('POST', '/api/tenants', rahul, null, { organizationId: abcOrgId, name: newTenantName });
+  expectStatus('Org admin creates a tenant', ct, 201);
+  const newTenantId = ct.data.tenant?.id;
+  const listAfter = await tenantsOf(rahul);
+  check('new tenant appears in the org admin tenant list', listAfter.some((t) => t.id === newTenantId));
+  expectStatus('Org admin creates a duplicate tenant name', await api('POST', '/api/tenants', rahul, null, { organizationId: abcOrgId, name: newTenantName }), 409);
+  const renamed = `${newTenantName} renamed`;
+  expectStatus('Org admin renames a tenant', await api('PATCH', `/api/tenants/${newTenantId}`, rahul, null, { name: renamed }), 200);
+  check('rename is visible in the tenant list', (await tenantsOf(rahul)).some((t) => t.id === newTenantId && t.name === renamed));
+  expectStatus('Tenant admin (Priya) creates a tenant', await api('POST', '/api/tenants', priya, null, { organizationId: abcOrgId, name: 'Nope A' }), 403);
+  expectStatus('Member (Arjun) creates a tenant', await api('POST', '/api/tenants', arjun, null, { organizationId: abcOrgId, name: 'Nope B' }), 403);
+  expectStatus('Tenant admin (Priya) renames her own tenant', await api('PATCH', `/api/tenants/${hyd}`, priya, null, { name: 'Nope C' }), 403);
+  expectStatus('Member (Arjun) renames a tenant', await api('PATCH', `/api/tenants/${hyd}`, arjun, null, { name: 'Nope D' }), 403);
+  expectStatus('Org admin of ABC renames an XYZ tenant (Mumbai)', await api('PATCH', `/api/tenants/${mum}`, rahul, null, { name: 'Nope E' }), 403);
+  expectStatus('XYZ user (Kiran) creates a tenant inside the ABC org', await api('POST', '/api/tenants', kiran, null, { organizationId: abcOrgId, name: 'Nope F' }), 403, 404);
+  check('Hyderabad name unchanged after all denied renames', (await tenantsOf(rahul)).find((t) => t.id === hyd)?.name === 'Hyderabad');
+  
   log('\n== F. Concurrency ==');
   const t1 = await mk('stale write test');
   const w1 = await P('PATCH', `/api/tasks/${t1.id}`, { version: t1.version, title: 'first writer' });
