@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   DndContext, DragOverlay, PointerSensor, closestCorners, useSensor, useSensors,
@@ -7,6 +7,7 @@ import { arrayMove } from '@dnd-kit/sortable'
 import Navbar from '../components/Navbar'
 import BoardColumn from '../components/BoardColumn'
 import PresenceIndicator from '../components/PresenceIndicator'
+import TaskDetails from '../components/TaskDetails'
 import { CardBody } from '../components/TaskCard'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
@@ -53,6 +54,8 @@ export default function Board() {
   const { tenantId, role } = useWorkspace()
   const [board, setBoard] = useState(null)
   const [columns, setColumns] = useState([])
+  const [members, setMembers] = useState([])
+  const [openTaskId, setOpenTaskId] = useState(null)
   const [status, setStatus] = useState('loading')
   const [notice, setNotice] = useState('')
   const [activeTask, setActiveTask] = useState(null)
@@ -64,6 +67,10 @@ export default function Board() {
 
   const canDelete = role === 'TENANT_ADMIN' || role === 'ORG_ADMIN'
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const memberNames = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m.name])), [members])
+  const openTask = openTaskId
+    ? columns.flatMap((c) => c.tasks).find((t) => t.id === openTaskId)
+    : null
 
   const resync = useCallback(() => {
     clearTimeout(resyncTimer.current)
@@ -116,6 +123,7 @@ export default function Board() {
     setStatus('loading')
     setBoard(null)
     setColumns([])
+    setOpenTaskId(null)
     setNotice('')
     fetchBoard(id)
       .then((r) => {
@@ -131,6 +139,28 @@ export default function Board() {
       cancelled = true
     }
   }, [id, tenantId])
+
+  useEffect(() => {
+    if (!tenantId) return
+    let cancelled = false
+    setMembers([])
+    api
+      .get('/api/members')
+      .then((r) => {
+        if (!cancelled) setMembers(r.data.members)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId])
+
+  useEffect(() => {
+    if (openTaskId && status === 'ready' && !openTask) {
+      setOpenTaskId(null)
+      setNotice('The task you had open was deleted.')
+    }
+  }, [openTaskId, openTask, status])
 
   function onDragStart({ active }) {
     dragging.current = true
@@ -227,6 +257,7 @@ export default function Board() {
     if (!window.confirm(`Delete "${task.title}"?`)) return
     try {
       await api.delete(`/api/tasks/${task.id}`, { params: { version: task.version } })
+      setOpenTaskId(null)
       setColumns((prev) => removeTask(prev, task.id))
     } catch (err) {
       setNotice(
@@ -285,16 +316,32 @@ export default function Board() {
                     key={col.id}
                     column={col}
                     canDelete={canDelete}
+                    memberNames={memberNames}
                     onAdd={addTask}
                     onDelete={deleteTask}
+                    onOpen={(t) => setOpenTaskId(t.id)}
                   />
                 ))}
               </div>
-              <DragOverlay>{activeTask ? <CardBody task={activeTask} /> : null}</DragOverlay>
+              <DragOverlay>
+                {activeTask ? <CardBody task={activeTask} memberNames={memberNames} /> : null}
+              </DragOverlay>
             </DndContext>
           </>
         )}
       </main>
+
+      {openTask && (
+        <TaskDetails
+          key={openTask.id}
+          task={openTask}
+          members={members}
+          canDelete={canDelete}
+          onClose={() => setOpenTaskId(null)}
+          onSaved={(t) => setColumns((prev) => upsertTask(prev, t))}
+          onDelete={deleteTask}
+        />
+      )}
     </div>
   )
 }

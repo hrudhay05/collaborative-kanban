@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import TaskCard from './TaskCard'
 
-export default function BoardColumn({ column, canDelete, onAdd, onDelete }) {
+export default function BoardColumn({ column, canDelete, memberNames, onAdd, onDelete, onOpen }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
   const [title, setTitle] = useState('')
 
@@ -26,7 +26,14 @@ export default function BoardColumn({ column, canDelete, onAdd, onDelete }) {
       >
         <SortableContext items={column.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {column.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} canDelete={canDelete} onDelete={onDelete} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              canDelete={canDelete}
+              memberNames={memberNames}
+              onDelete={onDelete}
+              onOpen={onOpen}
+            />
           ))}
         </SortableContext>
       </div>
