@@ -8,6 +8,7 @@ import boardRoutes from './routes/board.routes.js';
 import columnRoutes from './routes/column.routes.js';
 import taskRoutes from './routes/task.routes.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
+import membersRoutes from './routes/members.routes.js';
 
 const app = express();
 
@@ -24,7 +25,7 @@ app.use('/api/tenants', tenantRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/columns', columnRoutes);
 app.use('/api/tasks', taskRoutes);
-
+app.use('/api/members', membersRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
