@@ -1,0 +1,81 @@
+HTTP isolation, RBAC and concurrency tests - 2026-11-04T05:29:36.611Z
+
+== A. Cross-tenant ID guessing (Priya, Hyderabad, uses Bangalore IDs) ==
+PASS  GET Bangalore board by id (expect 404)
+PASS  GET Bangalore board columns (expect 404)
+PASS  GET Bangalore task by id (expect 404)
+PASS  GET Bangalore task activity (expect 404)
+PASS  PATCH Bangalore task (expect 404)
+PASS  MOVE Bangalore task (expect 404)
+PASS  DELETE Bangalore task (expect 404)
+PASS  PATCH Bangalore column (expect 404)
+PASS  DELETE Bangalore column (expect 404)
+PASS  PATCH Bangalore board (expect 404)
+PASS  DELETE Bangalore board (expect 404)
+PASS  create a task in a Bangalore board and column (expect 400/404)
+PASS  move a Hyderabad task into a Bangalore column (expect 400/404)
+PASS  Bangalore task unchanged (title, version, column)
+PASS  Hyderabad task stayed in its own column, version unchanged
+PASS  Bangalore board still exists with its name
+
+== B. Header and token tampering ==
+PASS  Priya with the Bangalore tenant header (expect 403)
+PASS  Priya GET /api/members with the Bangalore header (expect 403)
+PASS  Sneha (Bangalore admin) with the Hyderabad header (expect 403)
+PASS  unknown tenant id (expect 403)
+PASS  unknown tenant and not-my-tenant give identical responses (no tenant enumeration)
+PASS  missing tenant header (expect 400/403)
+PASS  malformed tenant header (expect 400/403)
+PASS  no token (expect 401)
+PASS  garbage token (expect 401)
+
+== C. Cross-organization isolation ==
+PASS  Kiran (XYZ) with the Hyderabad header (expect 403)
+PASS  Kiran (XYZ) with the Bangalore header (expect 403)
+PASS  Kiran reads an ABC board by id using his own tenant header (expect 404)
+PASS  Kiran reads an ABC task by id using his own tenant header (expect 404)
+PASS  Rahul (ABC org admin) with the Mumbai (XYZ) header (expect 403)
+PASS  Rahul sees only his own organization
+PASS  Kiran sees only XYZ tenants
+PASS  Rahul reads the XYZ organization by id (expect 403/404)
+PASS  Rahul lists the XYZ tenants (expect 403/404)
+
+== D. Body tampering ==
+PASS  tenantId in the request body cannot put a task into another tenant
+PASS  assign a task to a user from another organization (expect 400)
+PASS  assign a task to a user from another tenant (expect 400)
+
+== E. Role-based access control (Hyderabad) ==
+PASS  Member creates a board (expect 403)
+PASS  Member renames a board (expect 403)
+PASS  Member deletes a board (expect 403)
+PASS  Member adds a column (expect 403)
+PASS  Member renames a column (expect 403)
+PASS  Member deletes a column (expect 403)
+PASS  Member deletes a task (expect 403)
+PASS  Member creates a task (expect 201)
+PASS  Member edits a task (expect 200)
+PASS  Member moves a task (expect 200)
+PASS  Tenant admin of another tenant (Sneha) creates a Hyderabad board (expect 403)
+PASS  Org admin (Rahul) reaches Hyderabad (expect 200)
+PASS  Org admin (Rahul) reaches Chennai (expect 200)
+PASS  board survived every denied member action
+
+== F. Concurrency ==
+PASS  first writer (expect 200)
+PASS  second writer using the stale version (expect 409)
+PASS  409 body carries the current server task
+PASS  final state is the first writer, version incremented once
+PASS  rejected write left no activity entry (CREATED and one UPDATED only)
+PASS  5 rounds of simultaneous edits: exactly one winner each time, version +1
+PASS  5 rounds of two users moving the same task: one winner, task in the winning column, shown exactly once
+PASS  12 simultaneous moves of different tasks into one column all succeed
+PASS  no duplicate positions in the destination column
+PASS  destination holds the old tasks plus all 12, none lost or duplicated
+PASS  3 rounds of edit versus delete: never both succeed, final state consistent
+PASS  edit a deleted task (expect 404)
+PASS  move a deleted task (expect 404)
+
+(cleanup: removed 28 of 29 temporary tasks; re-seed before the next run)
+
+All 64 checks passed
