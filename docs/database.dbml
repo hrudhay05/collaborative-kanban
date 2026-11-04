@@ -1,0 +1,137 @@
+Enum role {
+  ORG_ADMIN
+  TENANT_ADMIN
+  MEMBER
+}
+
+Enum priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+Table organizations {
+  id uuid [pk]
+  name varchar [not null]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null]
+}
+
+Table tenants {
+  id uuid [pk]
+  organization_id uuid [not null]
+  name varchar [not null]
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (organization_id, name) [unique]
+    organization_id
+  }
+}
+
+Table users {
+  id uuid [pk]
+  name varchar [not null]
+  email varchar [not null, unique]
+  password_hash varchar [not null, note: 'bcrypt hash']
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table memberships {
+  id uuid [pk]
+  user_id uuid [not null]
+  organization_id uuid [not null]
+  tenant_id uuid [note: 'NULL = organization-level role']
+  role role [not null]
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (user_id, organization_id, tenant_id) [unique]
+    user_id
+    tenant_id
+    organization_id
+  }
+}
+
+Table boards {
+  id uuid [pk]
+  organization_id uuid [not null]
+  tenant_id uuid [not null, note: 'tenant isolation key']
+  name varchar [not null]
+  description text
+  created_by uuid [not null]
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    tenant_id
+    organization_id
+  }
+}
+
+Table columns {
+  id uuid [pk]
+  board_id uuid [not null]
+  tenant_id uuid [not null, note: 'tenant isolation key']
+  name varchar [not null]
+  position int [not null]
+
+  indexes {
+    board_id
+    tenant_id
+  }
+}
+
+Table tasks {
+  id uuid [pk]
+  board_id uuid [not null]
+  column_id uuid [not null]
+  tenant_id uuid [not null, note: 'tenant isolation key']
+  title varchar [not null]
+  description text
+  assigned_to uuid
+  priority priority [not null, default: 'MEDIUM']
+  due_date timestamp
+  position int [not null, note: 'gap-based ordering']
+  version int [not null, default: 1, note: 'optimistic lock']
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null]
+
+  indexes {
+    tenant_id
+    column_id
+    (tenant_id, board_id)
+    (column_id, position)
+  }
+}
+
+Table activity_logs {
+  id uuid [pk]
+  tenant_id uuid [not null, note: 'tenant isolation key']
+  user_id uuid [not null]
+  entity_type varchar [not null]
+  entity_id uuid [not null, note: 'no FK, history survives deletes']
+  action varchar [not null]
+  details jsonb
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    tenant_id
+    (tenant_id, created_at)
+  }
+}
+
+Ref: tenants.organization_id > organizations.id [delete: cascade]
+Ref: memberships.user_id > users.id [delete: cascade]
+Ref: memberships.organization_id > organizations.id [delete: cascade]
+Ref: memberships.tenant_id > tenants.id [delete: cascade]
+Ref: boards.organization_id > organizations.id [delete: cascade]
+Ref: boards.tenant_id > tenants.id [delete: cascade]
+Ref: boards.created_by > users.id
+Ref: columns.board_id > boards.id [delete: cascade]
+Ref: columns.tenant_id > tenants.id [delete: cascade]
+Ref: tasks.board_id > boards.id [delete: cascade]
+Ref: tasks.column_id > columns.id [delete: cascade]
+Ref: tasks.tenant_id > tenants.id [delete: cascade]
+Ref: tasks.assigned_to > users.id [delete: set null]
+Ref: activity_logs.tenant_id > tenants.id [delete: cascade]
+Ref: activity_logs.user_id > users.id
